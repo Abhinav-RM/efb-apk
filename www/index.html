@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<title>EFB Tournament Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700;800&family=Orbitron:wght@400;700;900&family=Exo+2:wght@400;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   VARIABLES & THEMES
+═══════════════════════════════════════ */
+:root {
+  --accent: #00f3ff;
+  --accent2: #bc13fe;
+  --accent-glow: rgba(0,243,255,0.25);
+  --bg: #050508;
+  --bg2: #0c0c12;
+  --glass: rgba(12,12,20,0.82);
+  --border: rgba(255,255,255,0.08);
+  --text: #dde2f0;
+  --muted: #4a5068;
+  --fw: 'Rajdhani', sans-serif;
+  --sidebar-w: 270px;
+}
+body.theme-fire   { --accent:#ff6a00; --accent2:#ff0050; --accent-glow:rgba(255,106,0,0.25); }
+body.theme-royal  { --accent:#ffc400; --accent2:#ff7c00; --accent-glow:rgba(255,196,0,0.25); }
+body.theme-ice    { --accent:#7dd3fc; --accent2:#3b82f6; --accent-glow:rgba(125,211,252,0.25); }
+body.theme-matrix { --accent:#00ff41; --accent2:#00cc33; --accent-glow:rgba(0,255,65,0.2); }
+body.theme-sunset { --accent:#f77f00; --accent2:#d62828; --accent-glow:rgba(247,127,0,0.25); }
+
+body.font-orbitron { --fw:'Orbitron',sans-serif; }
+body.font-exo      { --fw:'Exo 2',sans-serif; }
+body.font-bebas    { --fw:'Bebas Neue',cursive; }
+body.font-mono     { --fw:'JetBrains Mono',monospace; }
+
+/* ═══════════════════════════════════════
+   RESET
+═══════════════════════════════════════ */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background: var(--bg);
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 44px 44px;
+  color: var(--text);
+  font-family: var(--fw);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════
+   LOADING SCREEN
+═══════════════════════════════════════ */
+#loading {
+  position: fixed; inset: 0; background: #000;
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px;
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+#loading.fade-out { opacity: 0; transform: scale(1.04); pointer-events: none; }
+
+.ld-particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.ld-particle {
+  position: absolute; border-radius: 50%;
+  background: var(--accent); opacity: 0;
+  animation: ptFloat var(--d,4s) ease-in-out var(--delay,0s) infinite;
+}
+@keyframes ptFloat {
+  0%   { transform: translateY(110vh) translateX(0); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(-10vh) translateX(var(--dx,50px)); opacity: 0; }
+}
+
+.ld-rings {
+  position: relative; width: 120px; height: 120px;
+}
+.ld-ring {
+  position: absolute; border-radius: 50%;
+  border: 2px solid transparent;
+  animation: spinRing linear infinite;
+}
+.ld-ring:nth-child(1) {
+  inset: 0; border-top-color: var(--accent);
+  animation-duration: 1.2s;
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.ld-ring:nth-child(2) {
+  inset: 14px; border-right-color: var(--accent2);
+  animation-duration: 2s; animation-direction: reverse;
+}
+.ld-ring:nth-child(3) {
+  inset: 28px; border-bottom-color: var(--accent);
+  animation-duration: 1.6s;
+}
+.ld-ball {
+  position: absolute; inset: 42px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  animation: pulseBall 1.5s ease-in-out infinite alternate;
+}
+@keyframes spinRing { to { transform: rotate(360deg); } }
+@keyframes pulseBall { from { transform: scale(0.9); } to { transform: scale(1.1); } }
+
+.ld-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(9px, 2vw, 12px);
+  letter-spacing: 8px;
+  color: var(--accent);
+  text-shadow: 0 0 20px var(--accent);
+  animation: ldPulse 2s ease-in-out infinite;
+}
+@keyframes ldPulse { 50% { text-shadow: 0 0 40px var(--accent); } }
+
+.ld-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(18px, 4vw, 32px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 30px var(--accent);
+  letter-spacing: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 3px solid var(--accent);
+  width: 0;
+  animation: typeTitle 1.8s steps(20) 0.4s forwards, blinkC 0.65s step-end infinite;
+}
+@keyframes typeTitle { to { width: 100%; } }
+@keyframes blinkC { 50% { border-color: transparent; } }
+
+.ld-bar-wrap {
+  width: min(380px, 75vw); height: 3px;
+  background: rgba(255,255,255,0.07); border-radius: 4px; overflow: hidden;
+}
+.ld-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 4px;
+  box-shadow: 0 0 12px var(--accent);
+  animation: ldProgress 2.6s ease-out forwards;
+  width: 0;
+}
+@keyframes ldProgress { 0%{width:0} 25%{width:15%} 55%{width:60%} 80%{width:82%} 100%{width:100%} }
+
+.ld-sub {
+  font-size: 11px; letter-spacing: 5px; color: var(--muted);
+  animation: fadeUp 1s ease 1.8s both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+/* ═══════════════════════════════════════
+   HAMBURGER + SETTINGS BUTTONS
+═══════════════════════════════════════ */
+.top-btn {
+  position: fixed; top: 14px; z-index: 300;
+  width: 46px; height: 46px;
+  background: rgba(0,0,0,0.85);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.top-btn:hover { border-color: var(--accent); }
+
+#hamburgerBtn { left: 14px; flex-direction: column; gap: 5px; }
+#hamburgerBtn span {
+  display: block; width: 22px; height: 2px;
+  background: var(--text); border-radius: 2px; transition: 0.3s;
+}
+#hamburgerBtn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+#hamburgerBtn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+#hamburgerBtn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+#settingsBtn {
+  right: 14px; font-size: 19px;
+  transition: border-color 0.2s, transform 0.4s;
+}
+#settingsBtn:hover { transform: rotate(60deg); }
+
+/* ═══════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════ */
+.sidebar-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 250; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.sidebar-overlay.on { opacity: 1; pointer-events: all; }
+
+#sidebar {
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-w); height: 100vh;
+  background: rgba(4,4,8,0.97);
+  backdrop-filter: blur(24px);
+  border-right: 1px solid var(--border);
+  z-index: 280;
+  transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+#sidebar.open { transform: translateX(0); }
+
+.sb-header {
+  padding: 72px 22px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-brand {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; letter-spacing: 5px; color: var(--accent);
+  margin-bottom: 5px;
+  text-shadow: 0 0 15px var(--accent);
+}
+.sb-name { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 2px; }
+.sb-divider { padding: 8px 22px; font-size: 10px; letter-spacing: 3px; color: var(--muted); margin-top: 8px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 22px;
+  cursor: pointer;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  border-left: 3px solid transparent;
+  transition: 0.2s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+.nav-item.active {
+  color: var(--accent); border-left-color: var(--accent);
+  background: rgba(0,243,255,0.05);
+  text-shadow: 0 0 12px var(--accent-glow);
+}
+.nav-icon { font-size: 18px; width: 26px; text-align: center; }
+
+/* ═══════════════════════════════════════
+   SETTINGS PANEL
+═══════════════════════════════════════ */
+#settingsPanel {
+  position: fixed; top: 0; right: 0;
+  width: 300px; height: 100vh;
+  background: rgba(4,4,8,0.97);
+  backdrop-filter: blur(24px);
+  border-left: 1px solid var(--border);
+  z-index: 280;
+  transform: translateX(105%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  padding: 72px 20px 30px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 22px;
+}
+#settingsPanel.open { transform: translateX(0); }
+
+.sg-title {
+  font-size: 10px; letter-spacing: 4px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.sg-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.sg-label { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+.sg-input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #fff; padding: 9px 12px;
+  font-family: var(--fw); font-size: 14px; width: 100%;
+  transition: border-color 0.2s;
+}
+.sg-input:focus { outline: none; border-color: var(--accent); }
+select.sg-input option { background: #0a0a14; }
+
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.theme-chip {
+  padding: 9px 6px; border-radius: 8px; cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  font-family: var(--fw); font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; color: rgba(255,255,255,0.7);
+  text-align: center; transition: 0.2s;
+}
+.theme-chip:hover { transform: scale(1.04); }
+.theme-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(0,243,255,0.06); }
+
+.font-list { display: flex; flex-direction: column; gap: 6px; }
+.font-chip {
+  padding: 9px 13px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  font-size: 13px; color: rgba(255,255,255,0.7);
+  text-align: left; transition: 0.2s;
+}
+.font-chip:hover { background: rgba(255,255,255,0.07); }
+.font-chip.active { border-color: var(--accent); color: var(--accent); }
+
+.s-action {
+  width: 100%; padding: 11px;
+  border-radius: 9px; border: 1px solid var(--border);
+  background: rgba(0,243,255,0.08);
+  color: var(--accent);
+  font-family: var(--fw); font-size: 13px;
+  font-weight: 700; letter-spacing: 2px;
+  cursor: pointer; transition: 0.2s; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.s-action:hover { background: rgba(0,243,255,0.15); }
+.s-action.danger { background: rgba(255,50,50,0.08); color: #ff5555; border-color: rgba(255,50,50,0.2); }
+.s-action.danger:hover { background: rgba(255,50,50,0.15); }
+
+/* ═══════════════════════════════════════
+   PAGE SYSTEM
+═══════════════════════════════════════ */
+.page { display: none; padding: 68px 16px 150px; min-height: 100vh; }
+.page.active { display: block; }
+
+.page-heading {
+  text-align: center; margin-bottom: 28px; padding-top: 8px;
+}
+.page-heading h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(16px, 3.5vw, 26px);
+  letter-spacing: 5px; color: var(--accent);
+  text-shadow: 0 0 25px var(--accent-glow);
+}
+.page-heading p {
+  font-size: 11px; letter-spacing: 4px; color: var(--muted); margin-top: 5px;
+}
+
+/* ═══════════════════════════════════════
+   CAPTURE AREA
+═══════════════════════════════════════ */
+.cap-wrap { width: 100%; overflow-x: auto; padding-bottom: 16px; }
+
+.cap-area {
+  width: 1400px; min-height: 920px;
+  margin: 0 auto; position: relative;
+  background: #07070e;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 0 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.user-bg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-size: cover; background-position: center;
+  transform-origin: center; z-index: 0; transition: transform 0.12s;
+}
+.overlay-layer {
+  position: absolute; inset: 0;
+  background: linear-gradient(165deg, rgba(0,0,0,0.42), rgba(0,0,0,0.82));
+  z-index: 1;
+}
+.content-layer {
+  position: relative; z-index: 2;
+  padding: 65px; box-sizing: border-box;
+  display: flex; flex-direction: column;
+}
+
+.main-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(30px, 4vw, 58px);
+  text-transform: uppercase; font-weight: 900;
+  text-align: center; letter-spacing: 10px;
+  margin-bottom: 55px; color: #fff;
+  text-shadow: 0 0 30px var(--accent-glow);
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 22px;
+  display: inline-block; align-self: center;
+  outline: none; min-width: 200px;
+  transition: text-shadow 0.3s;
+}
+.main-header:focus { text-shadow: 0 0 50px var(--accent); }
+
+/* ═══════════════════════════════════════
+   GRID LAYOUT (shared)
+═══════════════════════════════════════ */
+.grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; width: 100%; }
+
+/* ═══════════════════════════════════════
+   GROUP CARDS (shared style)
+═══════════════════════════════════════ */
+.group-card {
+  background: rgba(12,12,22,0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 5px;
+  overflow: hidden; position: relative;
+}
+.group-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+.group-card-title {
+  font-size: 22px; font-weight: 800;
+  padding: 15px 24px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 3px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,243,255,0.04);
+  display: flex; align-items: center; gap: 11px;
+}
+.gc-icon { font-size: 16px; opacity: 0.5; flex-shrink: 0; }
+.gc-text { outline: none; flex: 1; }
+.gc-text:focus { color: var(--accent2); text-shadow: 0 0 10px var(--accent2); }
+
+/* TABLE BASE */
+table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; }
+th {
+  font-family: var(--fw); font-size: 12px; color: var(--muted);
+  font-weight: 700; padding: 11px 8px;
+  text-align: center; border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 2px;
+}
+th.left { text-align: left; padding-left: 20px; }
+td { padding: 11px 8px; border-bottom: 1px solid rgba(255,255,255,0.025); font-size: 17px; text-align: center; }
+td.left { text-align: left; padding-left: 20px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+td.rank { color: var(--muted); font-size: 13px; }
+td.pts { color: var(--accent); font-weight: 800; text-shadow: 0 0 10px var(--accent-glow); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(0,243,255,0.02); }
+
+[contenteditable]:empty::before {
+  content: attr(data-ph); color: rgba(255,255,255,0.12);
+  font-style: italic; font-weight: 400;
+}
+[contenteditable]:focus { outline: none; }
+.editable:focus { color: var(--accent2) !important; text-shadow: 0 0 10px var(--accent2); }
+
+/* ═══════════════════════════════════════
+   FIXTURE ROWS
+═══════════════════════════════════════ */
+.fixture-row {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; padding: 15px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.035);
+  gap: 10px; position: relative;
+  transition: background 0.18s;
+}
+.fixture-row:last-child { border-bottom: none; }
+.fixture-row:hover { background: rgba(0,243,255,0.025); }
+.match-bar {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: rgba(0,243,255,0.18);
+}
+.fixture-row:nth-child(even) .match-bar { background: rgba(188,19,254,0.2); }
+.team-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px; font-weight: 700;
+  text-transform: uppercase; color: #fff;
+  outline: none; cursor: text;
+}
+.team-name.home { text-align: right; }
+.vs-wrap { display: flex; align-items: center; justify-content: center; }
+.vs-pill {
+  background: rgba(0,243,255,0.07);
+  border: 1px solid rgba(0,243,255,0.2);
+  border-radius: 5px; padding: 4px 13px;
+  font-size: 14px; font-weight: 800;
+  letter-spacing: 4px; color: var(--accent);
+  text-shadow: 0 0 10px var(--accent-glow); white-space: nowrap;
+}
+.fixture-row:nth-child(even) .vs-pill {
+  background: rgba(188,19,254,0.07);
+  border-color: rgba(188,19,254,0.25);
+  color: var(--accent2); text-shadow: 0 0 10px rgba(188,19,254,0.4);
+}
+.match-meta {
+  grid-column: 1 / -1; text-align: center;
+  font-size: 11px; letter-spacing: 4px; color: var(--muted);
+  text-transform: uppercase; outline: none; cursor: text; margin-top: -3px;
+}
+.match-meta:focus { color: var(--accent); }
+
+/* ═══════════════════════════════════════
+   POINTS TABLE INPUTS
+═══════════════════════════════════════ */
+input.stat-in {
+  background: transparent; border: none;
+  color: inherit; width: 44px; text-align: center;
+  font-family: inherit; font-size: inherit; outline: none;
+}
+input.stat-in:focus {
+  color: var(--accent2); text-shadow: 0 0 8px var(--accent2);
+  border-bottom: 1px solid var(--accent2);
+}
+/* Remove arrows from number input */
+input.stat-in::-webkit-inner-spin-button,
+input.stat-in::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* ═══════════════════════════════════════
+   KNOCKOUT BRACKET
+═══════════════════════════════════════ */
+.bracket-scroll {
+  overflow-x: auto; padding: 10px 0 20px;
+}
+.bracket-flex {
+  display: flex; align-items: center;
+  gap: 0; min-width: max-content; padding: 10px 20px;
+}
+.bk-col {
+  display: flex; flex-direction: column;
+  align-items: center; min-width: 200px;
+}
+.bk-round-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px; letter-spacing: 4px;
+  color: var(--accent); margin-bottom: 14px;
+  text-shadow: 0 0 12px var(--accent-glow);
+  text-transform: uppercase;
+}
+.bk-matches-wrap { display: flex; flex-direction: column; gap: 24px; align-items: center; }
+
+.bk-match {
+  width: 190px;
+  background: rgba(10,10,20,0.88);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px; overflow: hidden; position: relative;
+}
+.bk-match::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; width: 100%; height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+.bk-slot {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: #fff;
+  min-height: 40px; position: relative;
+  transition: background 0.15s;
+  cursor: grab; user-select: none;
+  display: flex; align-items: center; gap: 8px;
+}
+.bk-slot:last-child { border-bottom: none; }
+.bk-slot:hover { background: rgba(0,243,255,0.07); }
+.bk-slot.dragging { opacity: 0.4; background: rgba(0,243,255,0.15); }
+.bk-slot.drag-over { background: rgba(0,243,255,0.2); outline: 1px dashed var(--accent); }
+.bk-slot-num { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 14px; }
+.bk-slot-name { outline: none; flex: 1; }
+.bk-slot-name:focus { color: var(--accent2); cursor: text; }
+.bk-score-inputs { display: flex; gap: 4px; flex-shrink: 0; }
+.bk-score-in {
+  width: 28px; padding: 2px 4px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px; color: var(--accent);
+  font-size: 13px; font-weight: 800; text-align: center;
+  font-family: 'JetBrains Mono', monospace; outline: none;
+}
+.bk-score-in:focus { border-color: var(--accent); }
+.bk-score-in::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.bk-connector {
+  width: 44px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--accent); opacity: 0.25;
+  position: relative;
+}
+.bk-connector::before {
+  content: ''; position: absolute; top: 50%; left: 0; right: 0;
+  height: 1px; background: var(--accent); opacity: 0.4;
+}
+.bk-connector span { background: var(--bg); padding: 0 4px; z-index: 1; position: relative; }
+
+.winner-box {
+  width: 210px; min-width: 210px;
+  background: rgba(0,243,255,0.04);
+  border: 2px solid var(--accent);
+  border-radius: 12px; padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(0,243,255,0.12), inset 0 0 30px rgba(0,243,255,0.04);
+}
+.wb-trophy { font-size: 44px; display: block; margin-bottom: 12px; animation: trophyGlow 2s ease-in-out infinite alternate; }
+@keyframes trophyGlow { from { filter: drop-shadow(0 0 10px var(--accent)); } to { filter: drop-shadow(0 0 30px var(--accent)); } }
+.wb-label { font-size: 10px; letter-spacing: 4px; color: var(--muted); margin-bottom: 8px; }
+.wb-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px; font-weight: 900;
+  color: var(--accent); text-shadow: 0 0 25px var(--accent);
+  outline: none; cursor: text; min-width: 60px;
+  display: inline-block;
+}
+.wb-name:focus { text-shadow: 0 0 40px var(--accent); }
+
+/* ═══════════════════════════════════════
+   BOTTOM CONTROLS BAR
+═══════════════════════════════════════ */
+.page-controls {
+  position: fixed; bottom: 18px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(4,4,10,0.94);
+  backdrop-filter: blur(22px);
+  padding: 12px 18px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  display: flex; gap: 9px; z-index: 100;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.02);
+  max-width: 95vw; justify-content: center; align-items: center; flex-wrap: wrap;
+}
+
+.ui-btn {
+  background: linear-gradient(135deg, var(--accent), #0077ff);
+  color: #000; border: none;
+  padding: 9px 17px; border-radius: 30px;
+  font-family: var(--fw); font-weight: 800;
+  font-size: 13px; text-transform: uppercase;
+  cursor: pointer; letter-spacing: 1px;
+  box-shadow: 0 0 12px rgba(0,243,255,0.2);
+  transition: box-shadow 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+.ui-btn:hover { box-shadow: 0 0 28px rgba(0,243,255,0.5); }
+.ui-btn:active { transform: scale(0.94); }
+.ui-btn.sec {
+  background: rgba(20,20,30,0.95); color: var(--text);
+  box-shadow: none; border: 1px solid rgba(255,255,255,0.1);
+}
+.ui-btn.sec:hover { border-color: var(--accent); color: var(--accent); }
+.ui-btn.save { background: linear-gradient(135deg, #00cc55, #007733); color: #fff; }
+.ui-btn.save:hover { box-shadow: 0 0 20px rgba(0,200,80,0.4); }
+
+.zoom-ctrl { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.zoom-ctrl label { font-size: 9px; letter-spacing: 3px; color: var(--muted); }
+.zoom-ctrl input[type=range] { width: 75px; accent-color: var(--accent); }
+
+/* ═══════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════ */
+.stats-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.stat-card {
+  background: rgba(10,10,20,0.88);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 22px 16px; text-align: center; position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; width: 100%; height: 2px;
+  background: var(--accent);
+}
+.stat-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 38px; font-weight: 900;
+  color: var(--accent); text-shadow: 0 0 20px var(--accent-glow);
+  line-height: 1;
+}
+.stat-label { font-size: 10px; letter-spacing: 3px; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
+
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.dash-card {
+  background: rgba(10,10,20,0.88);
+  border: 1px solid var(--border); border-radius: 12px; padding: 22px;
+}
+.dash-card-title { font-size: 11px; letter-spacing: 3px; color: var(--muted); margin-bottom: 16px; text-transform: uppercase; }
+.info-row {
+  display: flex; justify-content: space-between;
+  font-size: 14px; padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row span:last-child { color: var(--accent); font-weight: 700; }
+
+/* Quick nav buttons */
+.qnav-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* ═══════════════════════════════════════
+   NOTES PAGE
+═══════════════════════════════════════ */
+.notes-ta {
+  width: 100%; min-height: 220px;
+  background: rgba(10,10,20,0.88);
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px; color: var(--text);
+  font-family: var(--fw); font-size: 15px;
+  resize: vertical; outline: none; margin-bottom: 18px;
+  transition: border-color 0.2s;
+}
+.notes-ta:focus { border-color: var(--accent); }
+
+.schedule-card {
+  background: rgba(10,10,20,0.88);
+  border: 1px solid var(--border); border-radius: 12px; padding: 22px;
+}
+.schedule-card h2 { font-size: 11px; letter-spacing: 3px; color: var(--muted); margin-bottom: 16px; text-transform: uppercase; }
+.sched-entry {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 8px; margin-bottom: 8px; align-items: center;
+}
+.sched-input {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 7px; color: #fff; padding: 8px 10px;
+  font-family: var(--fw); font-size: 13px; outline: none; width: 100%;
+}
+.sched-input:focus { border-color: var(--accent); }
+.del-btn {
+  width: 34px; height: 34px; border-radius: 7px; border: 1px solid rgba(255,50,50,0.2);
+  background: rgba(255,50,50,0.07); color: #ff5555;
+  cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: 0.2s;
+}
+.del-btn:hover { background: rgba(255,50,50,0.2); }
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 95px; left: 50%;
+  transform: translateX(-50%) translateY(14px);
+  background: rgba(0,180,90,0.12);
+  border: 1px solid rgba(0,200,100,0.25);
+  border-radius: 30px; padding: 7px 18px;
+  font-size: 12px; letter-spacing: 3px; color: #00cc66;
+  z-index: 500; opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  white-space: nowrap; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ═══════════════════════════════════════
+   MOBILE
+═══════════════════════════════════════ */
+@media (max-width: 640px) {
+  :root { --sidebar-w: 82vw; }
+  .page { padding: 68px 10px 150px; }
+  .page-controls { padding: 10px 12px; gap: 7px; }
+  .ui-btn { padding: 8px 11px; font-size: 11px; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .sched-entry { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 400px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .sched-entry { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body class="theme-cyber">
+
+<!-- ═══════════════ LOADING SCREEN ═══════════════ -->
+<div id="loading">
+  <div class="ld-particles" id="ldParticles"></div>
+  <div class="ld-label">EFB TOURNAMENT SYSTEM</div>
+  <div class="ld-rings">
+    <div class="ld-ring"></div>
+    <div class="ld-ring"></div>
+    <div class="ld-ring"></div>
+    <div class="ld-ball">⚽</div>
+  </div>
+  <div class="ld-title">EFB CUP MANAGER</div>
+  <div class="ld-bar-wrap"><div class="ld-bar"></div></div>
+  <div class="ld-sub">LOADING TOURNAMENT DATA...</div>
+</div>
+
+<!-- ═══════════════ OVERLAYS ═══════════════ -->
+<div class="sidebar-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+
+<!-- ═══════════════ HAMBURGER + SETTINGS BTNS ═══════════════ -->
+<div class="top-btn" id="hamburgerBtn" onclick="toggleSidebar()">
+  <span></span><span></span><span></span>
+</div>
+<div class="top-btn" id="settingsBtn" onclick="toggleSettings()">⚙️</div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav id="sidebar">
+  <div class="sb-header">
+    <div class="sb-brand">EFB TOURNAMENT</div>
+    <div class="sb-name" id="sbTournamentName">MANAGER</div>
+  </div>
+  <div class="sb-divider">NAVIGATE</div>
+  <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')"><span class="nav-icon">📊</span>Dashboard</div>
+  <div class="nav-item" data-page="draw" onclick="switchPage('draw')"><span class="nav-icon">🎯</span>Group Draw</div>
+  <div class="nav-item" data-page="fixtures" onclick="switchPage('fixtures')"><span class="nav-icon">⚽</span>Group Fixtures</div>
+  <div class="nav-item" data-page="points" onclick="switchPage('points')"><span class="nav-icon">📋</span>Points Table</div>
+  <div class="nav-item" data-page="knockout" onclick="switchPage('knockout')"><span class="nav-icon">🏆</span>Knockout Stage</div>
+  <div class="nav-item" data-page="notes" onclick="switchPage('notes')"><span class="nav-icon">📝</span>Notes & Schedule</div>
+  <div class="sb-divider">ACTIONS</div>
+  <div class="nav-item" onclick="saveAllData()"><span class="nav-icon">💾</span>Save Progress</div>
+  <div class="nav-item" onclick="exportCurrentPage()"><span class="nav-icon">⬇️</span>Export Image</div>
+</nav>
+
+<!-- ═══════════════ SETTINGS PANEL ═══════════════ -->
+<div id="settingsPanel">
+  <div>
+    <div class="sg-title">⚙ Tournament Setup</div>
+    <div class="sg-row">
+      <span class="sg-label">Tournament Name</span>
+      <input type="text" class="sg-input" id="sgTournamentName" placeholder="EFB CUP SEASON 3" oninput="updateTournamentName(this.value)">
+    </div>
+    <div class="sg-row">
+      <span class="sg-label">Number of Groups</span>
+      <select class="sg-input" id="sgGroups" onchange="applySettings()">
+        <option value="2">2 Groups</option><option value="4" selected>4 Groups</option>
+        <option value="6">6 Groups</option><option value="8">8 Groups</option>
+      </select>
+    </div>
+    <div class="sg-row">
+      <span class="sg-label">Teams Per Group</span>
+      <select class="sg-input" id="sgTeams" onchange="applySettings()">
+        <option value="3">3 Teams</option><option value="4" selected>4 Teams</option>
+        <option value="5">5 Teams</option><option value="6">6 Teams</option><option value="8">8 Teams</option>
+      </select>
+    </div>
+    <div class="sg-row">
+      <span class="sg-label">Matches Per Group</span>
+      <select class="sg-input" id="sgMatches" onchange="applySettings()">
+        <option value="2" selected>2 Matches</option><option value="3">3 Matches</option>
+        <option value="4">4 Matches</option><option value="6">6 Matches</option>
+      </select>
+    </div>
+    <div class="sg-row">
+      <span class="sg-label">Knockout Format</span>
+      <select class="sg-input" id="sgKO" onchange="applySettings()">
+        <option value="4">SF Only (4 teams)</option>
+        <option value="8" selected>Quarter Finals (8)</option>
+        <option value="16">Round of 16 (16)</option>
+      </select>
+    </div>
+  </div>
+
+  <div>
+    <div class="sg-title">🎨 Theme</div>
+    <div class="theme-grid">
+      <button class="theme-chip active" id="theme-cyber" onclick="setTheme('cyber')">🔵 CYBER</button>
+      <button class="theme-chip" id="theme-fire" onclick="setTheme('fire')">🔴 FIRE</button>
+      <button class="theme-chip" id="theme-royal" onclick="setTheme('royal')">🟡 ROYAL</button>
+      <button class="theme-chip" id="theme-ice" onclick="setTheme('ice')">🩵 ICE</button>
+      <button class="theme-chip" id="theme-matrix" onclick="setTheme('matrix')">🟢 MATRIX</button>
+      <button class="theme-chip" id="theme-sunset" onclick="setTheme('sunset')">🟠 SUNSET</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="sg-title">🔤 Font</div>
+    <div class="font-list">
+      <button class="font-chip active" id="font-default" style="font-family:'Rajdhani'" onclick="setFont('default','Rajdhani')">Rajdhani — AaBbCc 123</button>
+      <button class="font-chip" id="font-orbitron" style="font-family:'Orbitron'" onclick="setFont('orbitron','Orbitron')">Orbitron — ABCDE 123</button>
+      <button class="font-chip" id="font-exo" style="font-family:'Exo 2'" onclick="setFont('exo','Exo 2')">Exo 2 — AaBbCc 123</button>
+      <button class="font-chip" id="font-bebas" style="font-family:'Bebas Neue'" onclick="setFont('bebas','Bebas Neue')">Bebas Neue — ABCDE 123</button>
+      <button class="font-chip" id="font-mono" style="font-family:'JetBrains Mono'" onclick="setFont('mono','JetBrains Mono')">JetBrains Mono</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="sg-title">💾 Data</div>
+    <button class="s-action" onclick="saveAllData()">💾 Save All Progress</button>
+    <button class="s-action" onclick="exportCurrentPage()">⬇ Export Current Page</button>
+    <button class="s-action danger" onclick="clearAllData()">🗑 Clear All Data</button>
+  </div>
+</div>
+
+<!-- ═══════════════ TOAST ═══════════════ -->
+<div id="toast">✓ SAVED</div>
+
+<!-- ══════════════════════════════════════════════════
+     PAGES
+══════════════════════════════════════════════════ -->
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="page-heading">
+    <h1 id="dashTitle">EFB CUP MANAGER</h1>
+    <p>TOURNAMENT CONTROL CENTER</p>
+  </div>
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-num" id="st-groups">4</div><div class="stat-label">Groups</div></div>
+    <div class="stat-card"><div class="stat-num" id="st-total">16</div><div class="stat-label">Total Teams</div></div>
+    <div class="stat-card"><div class="stat-num" id="st-matches">8</div><div class="stat-label">Group Matches</div></div>
+    <div class="stat-card"><div class="stat-num" id="st-stage">GS</div><div class="stat-label">Stage</div></div>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-card">
+      <div class="dash-card-title">Quick Navigate</div>
+      <div class="qnav-list">
+        <button class="ui-btn" onclick="switchPage('draw')" style="width:100%;text-align:left">🎯 Group Draw →</button>
+        <button class="ui-btn sec" onclick="switchPage('fixtures')" style="width:100%;text-align:left">⚽ Fixtures →</button>
+        <button class="ui-btn sec" onclick="switchPage('points')" style="width:100%;text-align:left">📋 Points Table →</button>
+        <button class="ui-btn sec" onclick="switchPage('knockout')" style="width:100%;text-align:left">🏆 Knockout →</button>
+        <button class="ui-btn sec" onclick="switchPage('notes')" style="width:100%;text-align:left">📝 Notes →</button>
+      </div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Tournament Info</div>
+      <div class="info-row"><span style="color:var(--muted)">Name</span><span id="inf-name">EFB CUP S3</span></div>
+      <div class="info-row"><span style="color:var(--muted)">Groups</span><span id="inf-groups">4</span></div>
+      <div class="info-row"><span style="color:var(--muted)">Teams/Group</span><span id="inf-tpg">4</span></div>
+      <div class="info-row"><span style="color:var(--muted)">Total Teams</span><span id="inf-total">16</span></div>
+      <div class="info-row"><span style="color:var(--muted)">Matches/Group</span><span id="inf-mpg">2</span></div>
+    </div>
+  </div>
+  <div class="dash-card" style="text-align:center;padding:18px">
+    <p style="color:var(--muted);font-size:11px;letter-spacing:4px">AUTO-SAVE ON · USE ☰ TO NAVIGATE · USE ⚙️ TO CONFIGURE</p>
+  </div>
+</div>
+
+<!-- GROUP DRAW -->
+<div class="page" id="page-draw">
+  <div class="cap-wrap">
+    <div class="cap-area" id="cap-draw">
+      <div class="user-bg" id="bg-draw"></div>
+      <div class="overlay-layer"></div>
+      <div class="content-layer">
+        <div class="main-header editable" contenteditable="true" id="drawTitle" oninput="autoSave()">EFB CUP — GROUP DRAW</div>
+        <div class="grid-layout" id="drawGrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-controls">
+    <button class="ui-btn sec" onclick="document.getElementById('bgf-draw').click()">📁 BG</button>
+    <input type="file" id="bgf-draw" accept="image/*" hidden onchange="handleBg(this,'draw')">
+    <div class="zoom-ctrl"><label>ZOOM</label><input type="range" min="1" max="3" step="0.05" value="1" oninput="setBgZoom('draw',this.value)"></div>
+    <button class="ui-btn save" onclick="saveAllData()">💾 SAVE</button>
+    <button class="ui-btn" onclick="exportPage('cap-draw','EFB_Group_Draw')">⬇ EXPORT</button>
+  </div>
+</div>
+
+<!-- FIXTURES -->
+<div class="page" id="page-fixtures">
+  <div class="cap-wrap">
+    <div class="cap-area" id="cap-fixtures">
+      <div class="user-bg" id="bg-fixtures"></div>
+      <div class="overlay-layer"></div>
+      <div class="content-layer">
+        <div class="main-header editable" contenteditable="true" id="fixturesTitle" oninput="autoSave()">EFB CUP — FIXTURES</div>
+        <div class="grid-layout" id="fixturesGrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-controls">
+    <button class="ui-btn sec" onclick="document.getElementById('bgf-fixtures').click()">📁 BG</button>
+    <input type="file" id="bgf-fixtures" accept="image/*" hidden onchange="handleBg(this,'fixtures')">
+    <div class="zoom-ctrl"><label>ZOOM</label><input type="range" min="1" max="3" step="0.05" value="1" oninput="setBgZoom('fixtures',this.value)"></div>
+    <button class="ui-btn save" onclick="saveAllData()">💾 SAVE</button>
+    <button class="ui-btn" onclick="exportPage('cap-fixtures','EFB_Fixtures')">⬇ EXPORT</button>
+  </div>
+</div>
+
+<!-- POINTS TABLE -->
+<div class="page" id="page-points">
+  <div class="cap-wrap">
+    <div class="cap-area" id="cap-points">
+      <div class="user-bg" id="bg-points"></div>
+      <div class="overlay-layer"></div>
+      <div class="content-layer">
+        <div class="main-header editable" contenteditable="true" id="pointsTitle" oninput="autoSave()">EFB CUP — POINTS TABLE</div>
+        <div class="grid-layout" id="pointsGrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-controls">
+    <button class="ui-btn sec" onclick="document.getElementById('bgf-points').click()">📁 BG</button>
+    <input type="file" id="bgf-points" accept="image/*" hidden onchange="handleBg(this,'points')">
+    <div class="zoom-ctrl"><label>ZOOM</label><input type="range" min="1" max="3" step="0.05" value="1" oninput="setBgZoom('points',this.value)"></div>
+    <button class="ui-btn save" onclick="saveAllData()">💾 SAVE</button>
+    <button class="ui-btn" onclick="exportPage('cap-points','EFB_Points_Table')">⬇ EXPORT</button>
+  </div>
+</div>
+
+<!-- KNOCKOUT -->
+<div class="page" id="page-knockout">
+  <div class="cap-wrap">
+    <div class="cap-area" id="cap-knockout" style="min-height:800px">
+      <div class="user-bg" id="bg-knockout"></div>
+      <div class="overlay-layer"></div>
+      <div class="content-layer">
+        <div class="main-header editable" contenteditable="true" id="knockoutTitle" oninput="autoSave()">EFB CUP — KNOCKOUT</div>
+        <div class="bracket-scroll"><div class="bracket-flex" id="bracketFlex"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-controls">
+    <button class="ui-btn sec" onclick="document.getElementById('bgf-knockout').click()">📁 BG</button>
+    <input type="file" id="bgf-knockout" accept="image/*" hidden onchange="handleBg(this,'knockout')">
+    <div class="zoom-ctrl"><label>ZOOM</label><input type="range" min="1" max="3" step="0.05" value="1" oninput="setBgZoom('knockout',this.value)"></div>
+    <button class="ui-btn sec" onclick="buildKnockout()">🔄 RESET BRACKET</button>
+    <button class="ui-btn save" onclick="saveAllData()">💾 SAVE</button>
+    <button class="ui-btn" onclick="exportPage('cap-knockout','EFB_Knockout')">⬇ EXPORT</button>
+  </div>
+</div>
+
+<!-- NOTES -->
+<div class="page" id="page-notes">
+  <div class="page-heading"><h1>NOTES & SCHEDULE</h1><p>TOURNAMENT INFORMATION HUB</p></div>
+  <textarea class="notes-ta" id="notesTA" placeholder="Add tournament notes, rules, announcements..." oninput="autoSave()"></textarea>
+  <div class="schedule-card">
+    <h2>Match Schedule</h2>
+    <div id="scheduleList"></div>
+    <button class="ui-btn sec" style="margin-top:14px" onclick="addScheduleEntry()">+ ADD MATCH</button>
+  </div>
+  <div class="page-controls">
+    <button class="ui-btn save" onclick="saveAllData()">💾 SAVE NOTES</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════ -->
+<script>
+// ══════════════════════ STATE ══════════════════════
+const S = {
+  groupCount: 4, teamCount: 4, matchCount: 2, koTeams: 8,
+  tournament: 'EFB CUP SEASON 3', theme: 'cyber', font: 'default',
+  bgImages: {}, schedule: [], currentPage: 'dashboard',
+  autoSaveTimer: null, toastTimer: null
+};
+const GL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// ══════════════════════ LOADING ══════════════════════
+function initLoading() {
+  const c = document.getElementById('ldParticles');
+  for (let i = 0; i < 45; i++) {
+    const p = document.createElement('div');
+    p.className = 'ld-particle';
+    p.style.cssText = `left:${Math.random()*100}%;width:${1+Math.random()*3}px;height:${1+Math.random()*3}px;--d:${2.5+Math.random()*4}s;--delay:${Math.random()*3}s;--dx:${(Math.random()-0.5)*180}px`;
+    c.appendChild(p);
+  }
+  setTimeout(() => {
+    const ld = document.getElementById('loading');
+    ld.classList.add('fade-out');
+    setTimeout(() => ld.remove(), 700);
+  }, 3000);
+}
+
+// ══════════════════════ SIDEBAR ══════════════════════
+function toggleSidebar() {
+  const open = document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('hamburgerBtn').classList.toggle('open', open);
+  document.getElementById('sbOverlay').classList.toggle('on', open);
+  if (open) document.getElementById('settingsPanel').classList.remove('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('hamburgerBtn').classList.remove('open');
+  document.getElementById('sbOverlay').classList.remove('on');
+}
+
+// ══════════════════════ SETTINGS ══════════════════════
+function toggleSettings() {
+  const open = document.getElementById('settingsPanel').classList.toggle('open');
+  if (open) closeSidebar();
+}
+
+function setTheme(t) {
+  document.body.className = document.body.className.replace(/theme-\w+/g, '').trim() + ' theme-' + t;
+  document.querySelectorAll('.theme-chip').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('theme-' + t);
+  if (el) el.classList.add('active');
+  S.theme = t; autoSave();
+}
+
+function setFont(key, name) {
+  // Remove any font class
+  document.body.className = document.body.className.replace(/font-\w+/g, '').trim();
+  if (key !== 'default') document.body.classList.add('font-' + key);
+  document.querySelectorAll('.font-chip').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('font-' + key);
+  if (el) el.classList.add('active');
+  S.font = key; autoSave();
+}
+
+function updateTournamentName(val) {
+  S.tournament = val || 'EFB TOURNAMENT';
+  document.getElementById('dashTitle').textContent = S.tournament;
+  document.getElementById('sbTournamentName').textContent = S.tournament;
+  document.getElementById('inf-name').textContent = S.tournament;
+  autoSave();
+}
+
+function applySettings() {
+  S.groupCount = parseInt(document.getElementById('sgGroups').value);
+  S.teamCount  = parseInt(document.getElementById('sgTeams').value);
+  S.matchCount = parseInt(document.getElementById('sgMatches').value);
+  S.koTeams    = parseInt(document.getElementById('sgKO').value);
+  buildDraw(); buildFixtures(); buildPoints(); buildKnockout();
+  updateDashboard(); autoSave();
+}
+
+// ══════════════════════ NAVIGATION ══════════════════════
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  S.currentPage = page;
+  closeSidebar();
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+
+// ══════════════════════ BACKGROUND ══════════════════════
+function handleBg(input, pageId) {
+  if (!input.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    S.bgImages[pageId] = e.target.result;
+    document.getElementById('bg-' + pageId).style.backgroundImage = `url(${e.target.result})`;
+    autoSave();
+  };
+  r.readAsDataURL(input.files[0]);
+}
+function setBgZoom(pageId, val) {
+  document.getElementById('bg-' + pageId).style.transform = `scale(${val})`;
+}
+
+// ══════════════════════ BUILD: GROUP DRAW ══════════════════════
+function buildDraw() {
+  const con = document.getElementById('drawGrid');
+  con.innerHTML = '';
+  const teams = getSaved('drawTeams') || {};
+  const gnames = getSaved('drawGNames') || {};
+
+  for (let i = 0; i < S.groupCount; i++) {
+    let rows = '';
+    for (let t = 1; t <= S.teamCount; t++) {
+      const k = `${i}_${t}`;
+      rows += `<tr>
+        <td class="rank"><span style="color:var(--muted)">${t}</span></td>
+        <td class="left editable" contenteditable="true" data-ph="Team ${t}"
+            oninput="saveCell('drawTeams','${k}',this)">${esc(teams[k]||'')}</td>
+      </tr>`;
+    }
+    const gname = esc(gnames[i] || `GROUP ${GL[i]}`);
+    con.innerHTML += `
+    <div class="group-card">
+      <div class="group-card-title">
+        <span class="gc-icon">⚽</span>
+        <div class="gc-text editable" contenteditable="true"
+             oninput="saveGName('drawGNames',${i},this)">${gname}</div>
+      </div>
+      <table><thead><tr><th>#</th><th class="left">Club</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+  }
+}
+
+// ══════════════════════ BUILD: FIXTURES ══════════════════════
+function buildFixtures() {
+  const con = document.getElementById('fixturesGrid');
+  con.innerHTML = '';
+  const fd = getSaved('fixturesData') || {};
+  const gnames = getSaved('fixturesGNames') || {};
+
+  for (let g = 0; g < S.groupCount; g++) {
+    let html = '';
+    for (let m = 1; m <= S.matchCount; m++) {
+      const hk = `${g}_${m}_h`, ak = `${g}_${m}_a`, mk = `${g}_${m}_m`;
+      html += `
+      <div class="fixture-row">
+        <div class="match-bar"></div>
+        <div class="team-name home editable" contenteditable="true" data-ph="HOME TEAM"
+             oninput="saveFix('${hk}',this)">${esc(fd[hk]||'')}</div>
+        <div class="vs-wrap"><div class="vs-pill">VS</div></div>
+        <div class="team-name editable" contenteditable="true" data-ph="AWAY TEAM"
+             oninput="saveFix('${ak}',this)">${esc(fd[ak]||'')}</div>
+        <div class="match-meta editable" contenteditable="true" data-ph="Date / Time / Venue"
+             oninput="saveFix('${mk}',this)">${esc(fd[mk]||'')}</div>
+      </div>`;
+    }
+    const gname = esc(gnames[g] || `GROUP ${GL[g]}`);
+    con.innerHTML += `
+    <div class="group-card">
+      <div class="group-card-title">
+        <span class="gc-icon">📅</span>
+        <div class="gc-text editable" contenteditable="true"
+             oninput="saveGName('fixturesGNames',${g},this)">${gname}</div>
+      </div>
+      ${html}
+    </div>`;
+  }
+}
+
+// ══════════════════════ BUILD: POINTS TABLE ══════════════════════
+function buildPoints() {
+  const con = document.getElementById('pointsGrid');
+  con.innerHTML = '';
+  const teams = getSaved('drawTeams') || {};
+  const stats = getSaved('ptsStats') || {};
+  const gnames = getSaved('drawGNames') || {};
+
+  for (let i = 0; i < S.groupCount; i++) {
+    let rows = '';
+    for (let t = 1; t <= S.teamCount; t++) {
+      const k = `${i}_${t}`;
+      const tn = esc(teams[k] || `TEAM ${t}`);
+      const st = stats[k] || { w:0,d:0,l:0,gf:0,ga:0 };
+      const p = st.w+st.d+st.l, gd = st.gf-st.ga, pts = st.w*3+st.d;
+      rows += `<tr data-k="${k}">
+        <td class="rank">${t}</td>
+        <td class="left">${tn}</td>
+        <td class="calc-p">${p}</td>
+        <td><input class="stat-in" type="number" min="0" value="${st.w}" data-stat="w" data-k="${k}" oninput="onStat(this)"></td>
+        <td><input class="stat-in" type="number" min="0" value="${st.d}" data-stat="d" data-k="${k}" oninput="onStat(this)"></td>
+        <td><input class="stat-in" type="number" min="0" value="${st.l}" data-stat="l" data-k="${k}" oninput="onStat(this)"></td>
+        <td><input class="stat-in" type="number" min="0" value="${st.gf}" data-stat="gf" data-k="${k}" oninput="onStat(this)"></td>
+        <td><input class="stat-in" type="number" min="0" value="${st.ga}" data-stat="ga" data-k="${k}" oninput="onStat(this)"></td>
+        <td class="calc-gd">${gd>0?'+'+gd:gd}</td>
+        <td class="pts calc-pts">${pts}</td>
+      </tr>`;
+    }
+    const gname = esc(gnames[i] || `GROUP ${GL[i]}`);
+    con.innerHTML += `
+    <div class="group-card">
+      <div class="group-card-title"><span class="gc-icon">📋</span>${gname}</div>
+      <table><thead>
+        <tr><th>#</th><th class="left">Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>PTS</th></tr>
+      </thead><tbody>${rows}</tbody></table>
+    </div>`;
+  }
+}
+
+function onStat(input) {
+  const k = input.dataset.k, stat = input.dataset.stat;
+  const stats = getSaved('ptsStats') || {};
+  if (!stats[k]) stats[k] = { w:0,d:0,l:0,gf:0,ga:0 };
+  stats[k][stat] = Math.max(0, parseInt(input.value)||0);
+  localStorage.setItem('efb_ptsStats', JSON.stringify(stats));
+  const st = stats[k];
+  const p = st.w+st.d+st.l, gd = st.gf-st.ga, pts = st.w*3+st.d;
+  const row = document.querySelector(`tr[data-k="${k}"]`);
+  if (!row) return;
+  row.querySelector('.calc-p').textContent = p;
+  row.querySelector('.calc-gd').textContent = gd > 0 ? '+'+gd : gd;
+  row.querySelector('.calc-pts').textContent = pts;
+  showToast('AUTO-SAVED');
+}
+
+// ══════════════════════ BUILD: KNOCKOUT ══════════════════════
+function buildKnockout() {
+  const con = document.getElementById('bracketFlex');
+  con.innerHTML = '';
+  const kd = getSaved('koData') || {};
+
+  let rounds = [];
+  if (S.koTeams >= 16) rounds = [
+    { label: 'ROUND OF 16', count: 8 },
+    { label: 'QUARTER FINALS', count: 4 },
+    { label: 'SEMI FINALS', count: 2 },
+    { label: 'FINAL', count: 1 }
+  ];
+  else if (S.koTeams === 8) rounds = [
+    { label: 'QUARTER FINALS', count: 4 },
+    { label: 'SEMI FINALS', count: 2 },
+    { label: 'FINAL', count: 1 }
+  ];
+  else rounds = [
+    { label: 'SEMI FINALS', count: 2 },
+    { label: 'FINAL', count: 1 }
+  ];
+
+  rounds.forEach((rnd, ri) => {
+    const col = document.createElement('div');
+    col.className = 'bk-col';
+    const lbl = document.createElement('div');
+    lbl.className = 'bk-round-label';
+    lbl.textContent = rnd.label;
+    col.appendChild(lbl);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'bk-matches-wrap';
+    // Increase gap per round to create bracket effect
+    wrap.style.gap = `${24 + ri * 80}px`;
+
+    for (let m = 0; m < rnd.count; m++) {
+      const k1 = `${rnd.label}_${m}_1`;
+      const k2 = `${rnd.label}_${m}_2`;
+      const sc1k = `${rnd.label}_${m}_sc1`;
+      const sc2k = `${rnd.label}_${m}_sc2`;
+      const match = document.createElement('div');
+      match.className = 'bk-match';
+      match.innerHTML = `
+        <div class="bk-slot" draggable="true"
+             ondragstart="koDragStart(event,'${k1}')"
+             ondragover="koDragOver(event)"
+             ondragleave="koDragLeave(event)"
+             ondrop="koDrop(event,'${k1}')">
+          <span class="bk-slot-num">${m*2+1}</span>
+          <span class="bk-slot-name editable" contenteditable="true"
+                oninput="saveKO('${k1}',this)">${esc(kd[k1]||'')}</span>
+          <div class="bk-score-inputs">
+            <input class="bk-score-in" type="number" min="0" value="${kd[sc1k]||''}"
+                   placeholder="-" oninput="saveKO('${sc1k}',this,'val')">
+          </div>
+        </div>
+        <div class="bk-slot" draggable="true"
+             ondragstart="koDragStart(event,'${k2}')"
+             ondragover="koDragOver(event)"
+             ondragleave="koDragLeave(event)"
+             ondrop="koDrop(event,'${k2}')">
+          <span class="bk-slot-num">${m*2+2}</span>
+          <span class="bk-slot-name editable" contenteditable="true"
+                oninput="saveKO('${k2}',this)">${esc(kd[k2]||'')}</span>
+          <div class="bk-score-inputs">
+            <input class="bk-score-in" type="number" min="0" value="${kd[sc2k]||''}"
+                   placeholder="-" oninput="saveKO('${sc2k}',this,'val')">
+          </div>
+        </div>`;
+      wrap.appendChild(match);
+    }
+    col.appendChild(wrap);
+    con.appendChild(col);
+
+    // Connector
+    if (ri < rounds.length - 1) {
+      const conn = document.createElement('div');
+      conn.className = 'bk-connector';
+      conn.innerHTML = '<span>→</span>';
+      con.appendChild(conn);
+    }
+  });
+
+  // Winner box
+  const wk = 'WINNER';
+  const wBox = document.createElement('div');
+  wBox.className = 'bk-col';
+  wBox.innerHTML = `
+    <div class="bk-round-label">CHAMPION</div>
+    <div class="winner-box"
+         ondragover="koDragOver(event)"
+         ondragleave="koDragLeave(event)"
+         ondrop="koDrop(event,'${wk}')">
+      <span class="wb-trophy">🏆</span>
+      <div class="wb-label">TOURNAMENT WINNER</div>
+      <div class="wb-name editable" contenteditable="true"
+           oninput="saveKO('${wk}',this)">${esc(kd[wk]||'???')}</div>
+    </div>`;
+  con.appendChild(wBox);
+}
+
+// KO drag & drop
+let koDragKey = null;
+function koDragStart(e, key) {
+  koDragKey = key;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.target.closest('.bk-slot')?.classList.add('dragging'), 0);
+}
+function koDragOver(e) {
+  e.preventDefault();
+  e.target.closest('.bk-slot, .winner-box')?.classList.add('drag-over');
+}
+function koDragLeave(e) {
+  e.target.closest('.bk-slot, .winner-box')?.classList.remove('drag-over');
+}
+function koDrop(e, targetKey) {
+  e.preventDefault();
+  document.querySelectorAll('.bk-slot,.winner-box').forEach(s => s.classList.remove('dragging','drag-over'));
+  if (!koDragKey || koDragKey === targetKey) return;
+  const kd = getSaved('koData') || {};
+  const tmp = kd[koDragKey];
+  kd[koDragKey] = kd[targetKey];
+  kd[targetKey] = tmp;
+  localStorage.setItem('efb_koData', JSON.stringify(kd));
+  buildKnockout();
+  showToast('SWAPPED ✓');
+}
+function saveKO(key, el, mode) {
+  const kd = getSaved('koData') || {};
+  kd[key] = mode === 'val' ? el.value : el.textContent;
+  localStorage.setItem('efb_koData', JSON.stringify(kd));
+  autoSave();
+}
+
+// ══════════════════════ CELL SAVE HELPERS ══════════════════════
+function saveCell(storeKey, dataKey, el) {
+  const d = getSaved(storeKey) || {};
+  d[dataKey] = el.textContent;
+  localStorage.setItem('efb_' + storeKey, JSON.stringify(d));
+  autoSave();
+}
+function saveGName(storeKey, idx, el) {
+  const d = getSaved(storeKey) || {};
+  d[idx] = el.textContent;
+  localStorage.setItem('efb_' + storeKey, JSON.stringify(d));
+  autoSave();
+}
+function saveFix(key, el) {
+  const d = getSaved('fixturesData') || {};
+  d[key] = el.textContent;
+  localStorage.setItem('efb_fixturesData', JSON.stringify(d));
+  autoSave();
+}
+
+// ══════════════════════ SAVE / LOAD ══════════════════════
+function getSaved(key) {
+  try { return JSON.parse(localStorage.getItem('efb_' + key)); } catch { return null; }
+}
+
+function saveAllData() {
+  // Page titles
+  ['draw','fixtures','points','knockout'].forEach(pg => {
+    const el = document.getElementById(pg + 'Title');
+    if (el) localStorage.setItem('efb_title_' + pg, el.textContent);
+  });
+  localStorage.setItem('efb_notes', document.getElementById('notesTA')?.value || '');
+  localStorage.setItem('efb_schedule', JSON.stringify(S.schedule));
+  localStorage.setItem('efb_bgImages', JSON.stringify(S.bgImages));
+  localStorage.setItem('efb_settings', JSON.stringify({
+    groupCount: S.groupCount, teamCount: S.teamCount, matchCount: S.matchCount,
+    koTeams: S.koTeams, tournament: S.tournament, theme: S.theme, font: S.font
+  }));
+  showToast('✓ ALL PROGRESS SAVED');
+}
+
+function autoSave() {
+  clearTimeout(S.autoSaveTimer);
+  S.autoSaveTimer = setTimeout(saveAllData, 1800);
+}
+
+function loadAllData() {
+  const settings = getSaved('settings');
+  if (settings) {
+    S.groupCount = settings.groupCount || 4;
+    S.teamCount  = settings.teamCount  || 4;
+    S.matchCount = settings.matchCount || 2;
+    S.koTeams    = settings.koTeams    || 8;
+    S.tournament = settings.tournament || 'EFB CUP SEASON 3';
+    S.theme      = settings.theme      || 'cyber';
+    S.font       = settings.font       || 'default';
+    document.getElementById('sgGroups').value = S.groupCount;
+    document.getElementById('sgTeams').value  = S.teamCount;
+    document.getElementById('sgMatches').value = S.matchCount;
+    document.getElementById('sgKO').value = S.koTeams;
+    document.getElementById('sgTournamentName').value = S.tournament;
+    setTheme(S.theme);
+    setFont(S.font);
+    updateTournamentName(S.tournament);
+  }
+
+  // BG images
+  const bgs = getSaved('bgImages') || {};
+  S.bgImages = bgs;
+  Object.entries(bgs).forEach(([pid, url]) => {
+    const el = document.getElementById('bg-' + pid);
+    if (el) el.style.backgroundImage = `url(${url})`;
+  });
+
+  // Notes
+  const notes = localStorage.getItem('efb_notes');
+  if (notes) document.getElementById('notesTA').value = notes;
+
+  // Titles
+  ['draw','fixtures','points','knockout'].forEach(pg => {
+    const v = localStorage.getItem('efb_title_' + pg);
+    const el = document.getElementById(pg + 'Title');
+    if (v && el) el.textContent = v;
+  });
+
+  // Schedule
+  const sched = getSaved('schedule');
+  if (sched) S.schedule = sched;
+  renderSchedule();
+}
+
+function clearAllData() {
+  if (!confirm('Clear ALL tournament data? This cannot be undone!')) return;
+  localStorage.clear(); location.reload();
+}
+
+// ══════════════════════ DASHBOARD ══════════════════════
+function updateDashboard() {
+  const total = S.groupCount * S.teamCount;
+  document.getElementById('st-groups').textContent = S.groupCount;
+  document.getElementById('st-total').textContent  = total;
+  document.getElementById('st-matches').textContent = S.groupCount * S.matchCount;
+  document.getElementById('inf-groups').textContent = S.groupCount;
+  document.getElementById('inf-tpg').textContent   = S.teamCount;
+  document.getElementById('inf-total').textContent = total;
+  document.getElementById('inf-mpg').textContent   = S.matchCount;
+}
+
+// ══════════════════════ EXPORT ══════════════════════
+function exportPage(captureId, filename) {
+  const el = document.getElementById(captureId);
+  document.querySelectorAll('.ui-btn').forEach(b => {
+    if (b.textContent.includes('EXPORT')) b.textContent = 'GENERATING...';
+  });
+  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#07070e', allowTaint: true })
+    .then(canvas => {
+      const a = document.createElement('a');
+      a.download = filename + '.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      document.querySelectorAll('.ui-btn').forEach(b => {
+        if (b.textContent.includes('GENERATING')) b.textContent = '⬇ EXPORT';
+      });
+    });
+}
+
+function exportCurrentPage() {
+  const map = {
+    draw: ['cap-draw', 'EFB_Group_Draw'],
+    fixtures: ['cap-fixtures', 'EFB_Fixtures'],
+    points: ['cap-points', 'EFB_Points_Table'],
+    knockout: ['cap-knockout', 'EFB_Knockout']
+  };
+  const e = map[S.currentPage];
+  if (e) exportPage(e[0], e[1]);
+  else showToast('Navigate to a canvas page');
+}
+
+// ══════════════════════ SCHEDULE ══════════════════════
+function addScheduleEntry() {
+  S.schedule.push({ match:'', date:'', time:'', venue:'' });
+  renderSchedule(); autoSave();
+}
+function removeScheduleEntry(i) {
+  S.schedule.splice(i,1);
+  renderSchedule(); autoSave();
+}
+function updateScheduleField(i, field, val) {
+  S.schedule[i][field] = val; autoSave();
+}
+function renderSchedule() {
+  const con = document.getElementById('scheduleList');
+  if (!con) return;
+  con.innerHTML = '';
+  S.schedule.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'sched-entry';
+    row.innerHTML = `
+      <input class="sched-input" placeholder="Match (e.g. A1 vs B2)" value="${esc2(e.match)}" oninput="updateScheduleField(${i},'match',this.value)">
+      <input class="sched-input" type="date" value="${esc2(e.date)}" oninput="updateScheduleField(${i},'date',this.value)">
+      <input class="sched-input" type="time" value="${esc2(e.time)}" oninput="updateScheduleField(${i},'time',this.value)">
+      <input class="sched-input" placeholder="Venue" value="${esc2(e.venue)}" oninput="updateScheduleField(${i},'venue',this.value)">
+      <button class="del-btn" onclick="removeScheduleEntry(${i})">✕</button>`;
+    con.appendChild(row);
+  });
+}
+
+// ══════════════════════ TOAST ══════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg || '✓ SAVED';
+  t.classList.add('show');
+  clearTimeout(S.toastTimer);
+  S.toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ══════════════════════ HELPERS ══════════════════════
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function esc2(str) {
+  if (!str) return '';
+  return String(str).replace(/"/g,'&quot;');
+}
+
+// ══════════════════════ KEYBOARD SHORTCUTS ══════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault(); saveAllData();
+  }
+  if (e.key === 'Escape') {
+    closeSidebar();
+    document.getElementById('settingsPanel').classList.remove('open');
+  }
+});
+
+// ══════════════════════ INIT ══════════════════════
+window.onload = function () {
+  initLoading();
+  setTimeout(() => {
+    loadAllData();
+    buildDraw();
+    buildFixtures();
+    buildPoints();
+    buildKnockout();
+    updateDashboard();
+  }, 200);
+};
+</script>
+</body>
+</html>
